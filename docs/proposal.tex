@@ -1,0 +1,139 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2020
+
+% ready for submission
+% \usepackage{neurips_2020}
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+%     \usepackage[preprint]{neurips_2020}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+%     \usepackage[final]{neurips_2020}
+
+% to avoid loading the natbib package, add option nonatbib:
+\usepackage[nonatbib,preprint]{neurips_2020}
+\usepackage[square,numbers]{natbib}
+\bibliographystyle{unsrtnat}
+\renewcommand{\bibsection}{}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{graphicx}
+\usepackage{float}
+
+\title{Analysis of Neural Networks Methods for Realistic Handwriting Synthesis \\\medskip \Large Project Proposal}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+\author{%
+  David Vajcenfeld\\
+  Undergraduate Student \\
+  Department of Computer Science\\
+  University of Toronto \\
+  \texttt{david.vajcenfeld@mail.utoronto.ca} \\
+   \And
+  Varun Pai\\
+  Undergraduate Student \\
+  Division of Engineering Science \\
+  University of Toronto \\
+  \texttt{varun.pai@mail.utoronto.ca}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Recurrent neural networks and Long Short-Term Memory architecture are commonly used
+for generation of sequential data.
+For this project, we will be building, analysing and testing these these networks for generating realistic-seeming
+handwriting
+\end{abstract}
+
+\section{Introduction}
+
+Recurrent neural networks (RNNs) are often used for generation various forms of sequential data, such as music and text.
+They are trained on real data sequences, where they
+attempt to predict the next element in the sequence.
+Subsequently, sequence generation can be performed
+by feeding previous networks outputs as inputs into the network,
+and sampling from them to generate the next element.
+
+RNNs unfortunately do not have good memory, and therefore their
+predictions are based on only the last few inputs.
+To mitigate this, the RNN architecture Long Short-Term Memory (LTSM)
+is used.
+
+\section{Related Works}
+
+The paper \textit{Generating Sequences with Recurrent Neural Networks}
+by Alex Graves goes into detail on how LSTM RNNs are used for sequence generation,
+with details on architecture and behavior.
+Furthermore, the paper explains how these neural networks
+can be used for handwriting synthesis. \cite{graves}
+
+Another relevant paper is \textit{Realistic Handwriting Generation using
+Recurrent Neural Networks and Long Short-Term Networks} by Bodapati et al.
+This paper uses a similar style of RNNs, in addition to using Mixed Density Networks (MDNs)
+in order to better capture randomness. \cite{bodapti}
+
+\section{Method / Algorithm}
+
+Both papers use deep recurrent neural networks for
+predicting and generating handwriting.
+The network has a many sequences and a
+large number of ``skip connections''.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=3cm]{rnn-arch.png}
+    \caption{Deep RNN architecture.}
+\end{figure}
+
+In order to increase the memory capacity of the RNN,
+Long Short-Term Memory (LSTM) cells are used.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=3cm]{lstm-cell.png}
+    \caption{LSTM cell.}
+\end{figure}
+
+For the purpose of this analysis,
+we plan to perform sensitivity analysis on the
+hyperparameters, including layer count, number of mixture components and number of hidden layers.
+While doing this, we will be analyzing the handwriting output and how realistic it looks.
+
+\section{Summary}
+
+In summary,
+for this project we plan to build, analyze and test
+a recurrent neural network using a Long Short-Term Memory architecture for the purpose of generating realistic handwriting.
+During analysis and testing we will be focusing on
+tuning hyperparameters and architectures
+in order to improve the realism of the generated handwriting.
+
+\section{References}
+
+{
+\small
+\bibliography{proposal}
+}
+
+\end{document}
