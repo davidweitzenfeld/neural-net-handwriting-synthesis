@@ -2,7 +2,7 @@
 
 ## Development
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/davidweitzenfeld/neural-net-handwriting-synthesis/blob/master/src/colab/main.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1b_LsoB33r6X2X2jbgl0LapoCOEaV59QA?usp=sharing)
 
 Code files are located in the `src` directory.
 
