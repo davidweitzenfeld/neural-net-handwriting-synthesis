@@ -8,6 +8,8 @@ Code files are located in the `src` directory.
 
 Google Colaboratory files are located in the `src/colab` directory.
 
+Data for testing, training and analysis is located in the `data` directory.
+
 ## Useful Links
 
 [1] Alex Graves. Generating sequences with recurrent neural networks, 2014.
