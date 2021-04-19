@@ -371,3 +371,145 @@ class Seq2SeqRecognition(BaseModel):
 
         return outputs
 
+
+class GravesModel(BaseModel):
+    """
+    Class for an implementation of Graves' handwriting synthesis model.
+    """
+
+    def __init__(self, input_dim, hidden_dim, num_layers, num_gaussian_out, dropout, num_chars,
+                 num_gaussian_window,
+                 char2idx, device):
+        super(GravesModel, self).__init__()
+
+        # Params
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.num_gaussian_out = num_gaussian_out
+        self.num_gaussian_window = num_gaussian_window
+        self.num_chars = num_chars
+        self.output_dim = 6 * num_gaussian_out + 1
+        self.num_layers = num_layers
+        self.dropout = dropout
+        self.char2idx = char2idx
+
+        # Setting an attribute device
+        self.device = device
+
+        # Define RNN layers
+        self.rnn_1_with_gaussian_attention = LSTMWithGaussianAttention(input_dim=input_dim,
+                                                                       hidden_dim=hidden_dim,
+                                                                       num_gaussian_window=num_gaussian_window,
+                                                                       num_chars=num_chars,
+                                                                       device=self.device)
+
+        self.rnn_2 = nn.LSTM(input_size=input_dim + hidden_dim + num_chars,
+                             hidden_size=hidden_dim,
+                             num_layers=num_layers,
+                             dropout=dropout,
+                             batch_first=True)
+
+        # Define the mixture density layer
+        self.mixture_density_layer = nn.Linear(self.hidden_dim, self.output_dim)
+
+    def forward(self, sentences, sentences_mask, strokes, strokes_mask):
+
+        # Initialization of the hidden layers for the rnn 2 & 3
+        batch_size = strokes.size(0)
+        hidden_2 = self.init_hidden(batch_size)
+
+        # First rnn with gaussian attention
+        output_rnn_1_attention, window, _ = self.rnn_1_with_gaussian_attention(strokes=strokes,
+                                                                               sentences=sentences,
+                                                                               sentences_mask=sentences_mask)
+        # Second rnn
+        input_rnn_2 = torch.cat([strokes, window, output_rnn_1_attention], dim=-1)
+        output_rnn_2, hidden_2 = self.rnn_2(input_rnn_2, hidden_2)
+        # Application of the mixture density layer
+        output_mdl = self.mixture_density_layer(output_rnn_2)
+
+        return output_mdl
+
+    def init_hidden(self, batch_size=1):
+        hidden_state = torch.zeros(self.num_layers, batch_size, self.hidden_dim, device=self.device)
+        cell_state = torch.zeros(self.num_layers, batch_size, self.hidden_dim, device=self.device)
+        return hidden_state, cell_state
+
+    def compute_gaussian_parameters(self, output_network, sampling_bias=0.):
+        pi, mu1, mu2, sigma1, sigma2, rho, eos = output_network.split(self.num_gaussian_out, dim=2)
+
+        # Normalization of the output + adding the bias
+        pi = torch.softmax(pi * (1 + sampling_bias), dim=2)
+        mu1 = mu1
+        mu2 = mu2
+        sigma1 = torch.exp(sigma1 - sampling_bias)
+        sigma2 = torch.exp(sigma2 - sampling_bias)
+        rho = torch.tanh(rho)
+        eos = torch.sigmoid(eos)  # Equivalent to the normalization given in the paper
+
+        return pi, mu1, mu2, sigma1, sigma2, rho, eos
+
+    def generate_conditional_sample(self, sentence, sampling_bias=1.):
+
+        # Adding a space char to the sentence for computing the exit condition
+        sentence += ' '
+
+        # Transforming the sentence into a tensor
+        sentence = torch.tensor(data=[self.char2idx[char] for char in sentence], dtype=torch.long)
+        sentence_mask = torch.ones(sentence.shape)
+
+        # Prepare input sequence
+        stroke = [0., 0., 0.]  # init the sample
+        stroke = torch.tensor(stroke).view(1, 1, 3)  # (bs, seq_len, 3)
+        list_strokes = []
+
+        # Set re_init = False in order to keep the hidden states during the loop
+        self.rnn_1_with_gaussian_attention.re_init = False
+        # Initialization of the hidden layer of the rnn 2 & 3
+        hidden_2 = self.init_hidden(stroke.size(0))
+
+        with torch.no_grad():
+            for i in range(700):  # sampling len
+
+                # First rnn with gaussian attention
+                output_rnn_1_attention, window, phi = self.rnn_1_with_gaussian_attention(
+                    strokes=stroke,
+                    sentences=sentence,
+                    sentences_mask=sentence_mask)
+                # Second rnn
+                input_rnn_2 = torch.cat([stroke, window, output_rnn_1_attention], dim=-1)
+                output_rnn_2, hidden_2 = self.rnn_2(input_rnn_2, hidden_2)
+                # Application of the mixture density layer
+                # input_mdl = torch.cat([output_rnn_1_attention, output_rnn_2, output_rnn_3], dim=-1)
+                output_mdl = self.mixture_density_layer(output_rnn_2)
+                # Computing the gaussian mixture parameters
+                gaussian_params = self.compute_gaussian_parameters(output_rnn_2, sampling_bias)
+                pi, mu1, mu2, sigma1, sigma2, rho, eos = gaussian_params
+
+                # Exit condition
+                if int(torch.argmax(phi)) + 1 == sentence.size(0):
+                    break
+
+                # Sample the next stroke
+                eos = torch.bernoulli(eos)  # Decide whether to stop or continue the stroke
+                idx = torch.multinomial(pi[0],
+                                        1)  # Pick a gaussian with a multinomial law based on weights pi
+
+                # Select the parameters of the picked gaussian
+                mu1 = mu1[0, 0, idx]
+                mu2 = mu2[0, 0, idx]
+                sigma1 = sigma1[0, 0, idx]
+                sigma2 = sigma2[0, 0, idx]
+                rho = rho[0, 0, idx]
+
+                # Sampling from a bivariate gaussian:
+                z1 = torch.normal(mean=0., std=torch.ones(1)).view(1, 1, -1)
+                z2 = torch.normal(mean=0., std=torch.ones(1)).view(1, 1, -1)
+                x1 = sigma1 * z1 + mu1
+                x2 = sigma2 * (rho * z1 + torch.sqrt(1 - rho ** 2) * z2) + mu2
+
+                # Adding the stroke to the list and updating the stroke
+                stroke = torch.cat([eos, x1, x2], 2)
+                list_strokes.append(stroke.squeeze().numpy())
+
+        return np.array(list_strokes)

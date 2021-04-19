@@ -74,6 +74,15 @@ class Trainer(BaseTrainer):
                 # Gradient clipping
                 clip_grad_norm_(self.model.parameters(), 10)
 
+            elif str(self.model).startswith('Graves'):
+                output_network = self.model(sentences, sentences_mask, strokes, strokes_mask)
+                gaussian_params = self.model.compute_gaussian_parameters(output_network)
+                loss = self.criterion(gaussian_params, strokes, strokes_mask)
+                loss.backward()
+                # Gradient clipping
+                clip_grad_norm_(self.model.rnn_1_with_gaussian_attention.lstm_cell.parameters(), 10)
+                clip_grad_norm_(self.model.rnn_2.parameters(), 10)
+
             else:
                 NotImplementedError("Not a valid model name")
 
