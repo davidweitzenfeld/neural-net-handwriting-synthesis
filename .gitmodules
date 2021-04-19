@@ -1,0 +1,3 @@
+[submodule "antoinedandi-handwriting-generation"]
+	path = antoinedandi-handwriting-generation
+	url = https://github.com/antoinedandi/HandwritingGeneration
