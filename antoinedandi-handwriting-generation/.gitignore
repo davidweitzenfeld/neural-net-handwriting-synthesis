@@ -1,3 +1,6 @@
 admin/*
 **.pyc
 notebooks/.ipynb_checkpoints/*
+.idea
+saved
+saved_figures
