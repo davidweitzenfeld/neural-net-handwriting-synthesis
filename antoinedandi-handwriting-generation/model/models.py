@@ -237,12 +237,12 @@ class ConditionalHandwriting(BaseModel):
         sentence += ' '
 
         # Transforming the sentence into a tensor
-        sentence = torch.tensor(data=[self.char2idx[char] for char in sentence], dtype=torch.long)
-        sentence_mask = torch.ones(sentence.shape)
+        sentence = torch.tensor(data=[self.char2idx[char] for char in sentence], dtype=torch.long, device=self.device)
+        sentence_mask = torch.ones(sentence.shape, device=self.device)
 
         # Prepare input sequence
         stroke = [0., 0., 0.]  # init the sample
-        stroke = torch.tensor(stroke).view(1, 1, 3)  # (bs, seq_len, 3)
+        stroke = torch.tensor(stroke, device=self.device).view(1, 1, 3)  # (bs, seq_len, 3)
         list_strokes = []
 
         # Set re_init = False in order to keep the hidden states during the loop
@@ -287,14 +287,14 @@ class ConditionalHandwriting(BaseModel):
                 rho = rho[0, 0, idx]
 
                 # Sampling from a bivariate gaussian:
-                z1 = torch.normal(mean=0., std=torch.ones(1)).view(1, 1, -1)
-                z2 = torch.normal(mean=0., std=torch.ones(1)).view(1, 1, -1)
+                z1 = torch.normal(mean=0., std=torch.ones(1, device=self.device)).view(1, 1, -1)
+                z2 = torch.normal(mean=0., std=torch.ones(1, device=self.device)).view(1, 1, -1)
                 x1 = sigma1 * z1 + mu1
                 x2 = sigma2 * (rho * z1 + torch.sqrt(1 - rho ** 2) * z2) + mu2
 
                 # Adding the stroke to the list and updating the stroke
                 stroke = torch.cat([eos, x1, x2], 2)
-                list_strokes.append(stroke.squeeze().numpy())
+                list_strokes.append(stroke.squeeze().cpu().numpy())
 
         return np.array(list_strokes)
 
@@ -465,12 +465,13 @@ class GravesModel(BaseModel):
         sentence += ' '
 
         # Transforming the sentence into a tensor
-        sentence = torch.tensor(data=[self.char2idx[char] for char in sentence], dtype=torch.long)
-        sentence_mask = torch.ones(sentence.shape)
+        sentence = torch.tensor(data=[self.char2idx[char] for char in sentence], dtype=torch.long,
+                                device=self.device)
+        sentence_mask = torch.ones(sentence.shape, device=self.device)
 
         # Prepare input sequence
         stroke = [0., 0., 0.]  # init the sample
-        stroke = torch.tensor(stroke).view(1, 1, 3)  # (bs, seq_len, 3)
+        stroke = torch.tensor(stroke, device=self.device).view(1, 1, 3)  # (bs, seq_len, 3)
         list_strokes = []
 
         # Set re_init = False in order to keep the hidden states during the loop
@@ -492,12 +493,12 @@ class GravesModel(BaseModel):
                     sentences_mask=sentence_mask)
                 # Third rnn
                 input_rnn_3 = torch.cat([stroke, window, output_rnn_2_attention], dim=-1)
-                output_rnn_3, hidden_3 = self.rnn_2(input_rnn_3, hidden_3)
+                output_rnn_3, hidden_3 = self.rnn_3(input_rnn_3, hidden_3)
                 # Application of the mixture density layer
                 # input_mdl = torch.cat([output_rnn_1_attention, output_rnn_2, output_rnn_3], dim=-1)
                 output_mdl = self.mixture_density_layer(output_rnn_3)
                 # Computing the gaussian mixture parameters
-                gaussian_params = self.compute_gaussian_parameters(output_rnn_3, sampling_bias)
+                gaussian_params = self.compute_gaussian_parameters(output_mdl, sampling_bias)
                 pi, mu1, mu2, sigma1, sigma2, rho, eos = gaussian_params
 
                 # Exit condition
@@ -517,13 +518,13 @@ class GravesModel(BaseModel):
                 rho = rho[0, 0, idx]
 
                 # Sampling from a bivariate gaussian:
-                z1 = torch.normal(mean=0., std=torch.ones(1)).view(1, 1, -1)
-                z2 = torch.normal(mean=0., std=torch.ones(1)).view(1, 1, -1)
+                z1 = torch.normal(mean=0., std=torch.ones(1, device=self.device)).view(1, 1, -1)
+                z2 = torch.normal(mean=0., std=torch.ones(1, device=self.device)).view(1, 1, -1)
                 x1 = sigma1 * z1 + mu1
                 x2 = sigma2 * (rho * z1 + torch.sqrt(1 - rho ** 2) * z2) + mu2
 
                 # Adding the stroke to the list and updating the stroke
                 stroke = torch.cat([eos, x1, x2], 2)
-                list_strokes.append(stroke.squeeze().numpy())
+                list_strokes.append(stroke.squeeze().cpu().numpy())
 
         return np.array(list_strokes)

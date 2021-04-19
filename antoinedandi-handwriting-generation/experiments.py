@@ -87,7 +87,7 @@ def recognize_stroke(stroke, config_fn='../saved/models/Seq2SeqHandwritingRecogn
 #######################################################################################################################
 
 
-def main(config):
+def main(config, save_suffix: str=''):
     logger = config.get_logger('experiments')
 
     # setup the device
@@ -112,19 +112,23 @@ def main(config):
 
     with torch.no_grad():
 
-        if str(model).startswith('Unconditional'):
+        if str(model).startswith('Unconditional' + save_suffix):
             sampled_stroke = model.generate_unconditional_sample()
-            plot_stroke(sampled_stroke)
+            plot_stroke(sampled_stroke, save_name="Unconditional")
 
-        elif str(model).startswith('Conditional'):
+        elif str(model).startswith('Conditional' + save_suffix):
             sampled_stroke = model.generate_conditional_sample('hello world')
-            plot_stroke(sampled_stroke)
+            plot_stroke(sampled_stroke, save_name="Unconditional")
 
-        elif str(model).startswith('Seq2Seq'):
+        elif str(model).startswith('Seq2Seq' + save_suffix):
             sent, stroke = data_loader.dataset[21]
             predicted_seq = model.recognize_sample(stroke)
             print('real text:      ', data_loader.dataset.tensor2sentence(sent))
             print('predicted text: ', data_loader.dataset.tensor2sentence(torch.tensor(predicted_seq)))
+
+        elif str(model).startswith('Graves' + save_suffix):
+            sampled_stroke = model.generate_conditional_sample('hello world')
+            plot_stroke(sampled_stroke, save_name="Graves")
 
 
 if __name__ == '__main__':

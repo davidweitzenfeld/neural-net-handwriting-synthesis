@@ -1,4 +1,5 @@
 import torch
+import experiments
 from abc import abstractmethod
 from numpy import inf
 from logger import TensorboardWriter
@@ -97,6 +98,7 @@ class BaseTrainer:
 
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch, save_best=best)
+                experiments.main(self.config, save_suffix=f'epoch{epoch}')
 
     def _save_checkpoint(self, epoch, save_best=False):
         """
