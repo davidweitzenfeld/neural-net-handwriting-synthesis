@@ -140,6 +140,11 @@ class Trainer(BaseTrainer):
                     output_network = self.model(sentences, sentences_mask, strokes, strokes_mask)
                     loss = self.criterion(output_network, sentences, sentences_mask)
 
+                elif str(self.model).startswith('Graves'):
+                    output_network = self.model(sentences, sentences_mask, strokes, strokes_mask)
+                    gaussian_params = self.model.compute_gaussian_parameters(output_network)
+                    loss = self.criterion(gaussian_params, strokes, strokes_mask)
+
                 else:
                     NotImplementedError("Not a valid model name")
 
