@@ -3,7 +3,6 @@ import shutil
 import torch
 import model.models as module_arch
 import data_loader.data_loader as module_data
-from data_loader.data_loader import HandWritingDataset
 from parse_config import ConfigParser
 from utils import plot_stroke, read_json
 
@@ -19,7 +18,7 @@ def generate_unconditionally(config_fn='../saved/models/UnconditionalHandwriting
     config = ConfigParser(config, resume)
     # set up device and data_loader
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = HandWritingDataset('../data')
+    dataset = module_data.HandWritingDataset('../data')
     # build model architecture and load weights
     model = config.init_obj('arch', module_arch, char2idx=dataset.char2idx, device=device)
     checkpoint = torch.load(config.resume, map_location=device)
@@ -43,7 +42,7 @@ def generate_conditionally(text, config_fn='../saved/models/ConditionalHandwriti
     config = ConfigParser(config, resume)
     # set up device and data_loader
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = HandWritingDataset('../data')
+    dataset = module_data.HandWritingDataset('../data')
     # build model architecture and load weights
     model = config.init_obj('arch', module_arch, char2idx=dataset.char2idx, device=device)
     checkpoint = torch.load(config.resume, map_location=device)
@@ -67,7 +66,7 @@ def recognize_stroke(stroke, config_fn='../saved/models/Seq2SeqHandwritingRecogn
     config = ConfigParser(config, resume)
     # set up device and data_loader
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = HandWritingDataset('../data')
+    dataset = module_data.HandWritingDataset('../data')
     # build model architecture and load weights
     model = config.init_obj('arch', module_arch, char2idx=dataset.char2idx, device=device)
     checkpoint = torch.load(config.resume, map_location=device)
@@ -87,7 +86,7 @@ def recognize_stroke(stroke, config_fn='../saved/models/Seq2SeqHandwritingRecogn
 #######################################################################################################################
 
 
-def main(config, save_suffix: str=''):
+def run(config, save_suffix: str = ''):
     logger = config.get_logger('experiments')
 
     # setup the device
@@ -97,7 +96,8 @@ def main(config, save_suffix: str=''):
     data_loader = config.init_obj('data_loader', module_data)
 
     # build model architecture
-    model = config.init_obj('arch', module_arch, char2idx=data_loader.dataset.char2idx, device=device)
+    model = config.init_obj('arch', module_arch, char2idx=data_loader.dataset.char2idx,
+                            device=device)
     logger.info(model)
 
     # Loading the weights of the model
@@ -112,23 +112,28 @@ def main(config, save_suffix: str=''):
 
     with torch.no_grad():
 
-        if str(model).startswith('Unconditional' + save_suffix):
+        if str(model).startswith('Unconditional'):
             sampled_stroke = model.generate_unconditional_sample()
-            plot_stroke(sampled_stroke, save_name="Unconditional")
+            plot_stroke(sampled_stroke, save_name="Unconditional" + save_suffix)
 
-        elif str(model).startswith('Conditional' + save_suffix):
+        elif str(model).startswith('Conditional'):
             sampled_stroke = model.generate_conditional_sample('hello world')
-            plot_stroke(sampled_stroke, save_name="Unconditional")
+            plot_stroke(sampled_stroke, save_name="Unconditional" + save_suffix)
 
-        elif str(model).startswith('Seq2Seq' + save_suffix):
+        elif str(model).startswith('Seq2Seq'):
             sent, stroke = data_loader.dataset[21]
             predicted_seq = model.recognize_sample(stroke)
             print('real text:      ', data_loader.dataset.tensor2sentence(sent))
-            print('predicted text: ', data_loader.dataset.tensor2sentence(torch.tensor(predicted_seq)))
+            print('predicted text: ',
+                  data_loader.dataset.tensor2sentence(torch.tensor(predicted_seq)))
 
-        elif str(model).startswith('Graves' + save_suffix):
+        elif str(model).startswith('Graves'):
             sampled_stroke = model.generate_conditional_sample('hello world')
-            plot_stroke(sampled_stroke, save_name="Graves")
+            plot_stroke(sampled_stroke, save_name="Graves" + save_suffix)
+
+
+def main(config):
+    run(config)
 
 
 if __name__ == '__main__':
