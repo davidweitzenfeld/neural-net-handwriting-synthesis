@@ -397,13 +397,19 @@ class GravesModel(BaseModel):
         self.device = device
 
         # Define RNN layers
-        self.rnn_1_with_gaussian_attention = LSTMWithGaussianAttention(input_dim=input_dim,
+        self.rnn_1 = nn.LSTM(input_size=input_dim,
+                             hidden_size=hidden_dim,
+                             num_layers=num_layers,
+                             dropout=dropout,
+                             batch_first=True)
+
+        self.rnn_2_with_gaussian_attention = LSTMWithGaussianAttention(input_dim=hidden_dim + 3,
                                                                        hidden_dim=hidden_dim,
                                                                        num_gaussian_window=num_gaussian_window,
                                                                        num_chars=num_chars,
                                                                        device=self.device)
 
-        self.rnn_2 = nn.LSTM(input_size=input_dim + hidden_dim + num_chars,
+        self.rnn_3 = nn.LSTM(input_size=input_dim + hidden_dim + num_chars,
                              hidden_size=hidden_dim,
                              num_layers=num_layers,
                              dropout=dropout,
@@ -416,17 +422,21 @@ class GravesModel(BaseModel):
 
         # Initialization of the hidden layers for the rnn 2 & 3
         batch_size = strokes.size(0)
-        hidden_2 = self.init_hidden(batch_size)
+        hidden_1 = self.init_hidden(batch_size)
+        hidden_3 = self.init_hidden(batch_size)
 
-        # First rnn with gaussian attention
-        output_rnn_1_attention, window, _ = self.rnn_1_with_gaussian_attention(strokes=strokes,
+        # Fist rnn
+        output_rnn_1, hidden_1 = self.rnn_1(strokes, hidden_1)
+        # Second rnn with gaussian attention
+        input_rnn_2 = torch.cat([strokes, output_rnn_1], dim=-1)
+        output_rnn_2_attention, window, _ = self.rnn_2_with_gaussian_attention(strokes=input_rnn_2,
                                                                                sentences=sentences,
                                                                                sentences_mask=sentences_mask)
         # Second rnn
-        input_rnn_2 = torch.cat([strokes, window, output_rnn_1_attention], dim=-1)
-        output_rnn_2, hidden_2 = self.rnn_2(input_rnn_2, hidden_2)
+        input_rnn_3 = torch.cat([strokes, window, output_rnn_2_attention], dim=-1)
+        output_rnn_3, hidden3 = self.rnn_3(input_rnn_3, hidden_3)
         # Application of the mixture density layer
-        output_mdl = self.mixture_density_layer(output_rnn_2)
+        output_mdl = self.mixture_density_layer(output_rnn_3)
 
         return output_mdl
 
@@ -464,26 +474,30 @@ class GravesModel(BaseModel):
         list_strokes = []
 
         # Set re_init = False in order to keep the hidden states during the loop
-        self.rnn_1_with_gaussian_attention.re_init = False
-        # Initialization of the hidden layer of the rnn 2 & 3
-        hidden_2 = self.init_hidden(stroke.size(0))
+        self.rnn_2_with_gaussian_attention.re_init = False
+        # Initialization of the hidden layer of the rnn 1 & 3
+        hidden_1 = self.init_hidden(stroke.size(0))
+        hidden_3 = self.init_hidden(stroke.size(0))
 
         with torch.no_grad():
             for i in range(700):  # sampling len
 
-                # First rnn with gaussian attention
-                output_rnn_1_attention, window, phi = self.rnn_1_with_gaussian_attention(
-                    strokes=stroke,
+                # First rnn
+                output_rnn_1, hidden_1 = self.rnn_1(stroke, hidden_1)
+                # Second rnn with gaussian attention
+                input_rnn_2 = torch.cat([stroke, output_rnn_1], dim=-1)
+                output_rnn_2_attention, window, phi = self.rnn_2_with_gaussian_attention(
+                    strokes=input_rnn_2,
                     sentences=sentence,
                     sentences_mask=sentence_mask)
-                # Second rnn
-                input_rnn_2 = torch.cat([stroke, window, output_rnn_1_attention], dim=-1)
-                output_rnn_2, hidden_2 = self.rnn_2(input_rnn_2, hidden_2)
+                # Third rnn
+                input_rnn_3 = torch.cat([stroke, window, output_rnn_2_attention], dim=-1)
+                output_rnn_3, hidden_3 = self.rnn_2(input_rnn_3, hidden_3)
                 # Application of the mixture density layer
                 # input_mdl = torch.cat([output_rnn_1_attention, output_rnn_2, output_rnn_3], dim=-1)
-                output_mdl = self.mixture_density_layer(output_rnn_2)
+                output_mdl = self.mixture_density_layer(output_rnn_3)
                 # Computing the gaussian mixture parameters
-                gaussian_params = self.compute_gaussian_parameters(output_rnn_2, sampling_bias)
+                gaussian_params = self.compute_gaussian_parameters(output_rnn_3, sampling_bias)
                 pi, mu1, mu2, sigma1, sigma2, rho, eos = gaussian_params
 
                 # Exit condition
