@@ -54,7 +54,7 @@ def combine_strokes(x, n):
  
 def parse_page_text(dir_path, id):
     dict = {}
-    f = open(dir_path + '/' + id)
+    f = open(dir_path + '/' + id + '/' + os.listdir(dir_path + '/' + id)[0])
     has_started = False
     line_num = -1
     for l in f.readlines():
@@ -118,8 +118,8 @@ def create_dataset(formlist, strokes_path, images_path, tokenizer, text_dict, he
     forms = open(formlist).readlines()
 
     for f in forms:
-        path = strokes_path + '/' + f[1:4] + '/' + f[1:8]
-        offline_path = images_path + '/' + f[1:4] + '/' + f[1:8]
+        path = strokes_path + '/lineStrokes/' + f[1:4] + '/' + f[1:8]
+        offline_path = images_path + '/lineImages/' + f[1:4] + '/' + f[1:8]
 
         samples = [s for s in os.listdir(path) if f[1:-1] in s]
         offline_samples = [s for s in os.listdir(offline_path) if f[1:-1] in s]
@@ -127,23 +127,24 @@ def create_dataset(formlist, strokes_path, images_path, tokenizer, text_dict, he
         random.shuffle(shuffled_offline_samples)
         
         for i in range(len(samples)):
-            dataset.append((
-                parse_stroke_xml(path + '/' + samples[i]),
-                tokenizer.encode(text_dict[samples[i][:-4]]),
-                read_img(offline_path + '/' + shuffled_offline_samples[i], height)
-            ))        
+            if samples[i][:6] in text_dict:
+                dataset.append((
+                    parse_stroke_xml(path + '/' + samples[i]),
+                    tokenizer.encode(text_dict[samples[i][:6]]),
+                    read_img(offline_path + '/' + shuffled_offline_samples[i], height)
+                ))
     return dataset
 
 def main():
     parser = argparse.ArgumentParser()    
     parser.add_argument('-t', '--text_path', help='path to text labels, \
-                        default ./data/ascii-all', default='./data/ascii-all' )
+                        default ../data/ascii-all', default='../data/ascii-all' )
 
     parser.add_argument('-s', '--strokes_path', help='path to stroke xml, \
-                        default ./data/lineStrokes-all', default='./data/lineStrokes-all')
+                        default ../data/lineStrokes-all', default='../data/lineStrokes-all')
 
     parser.add_argument('-i', '--images_path', help='path to line images, \
-                        default ./data/lineImages-all', default='./data/lineImages-all')
+                        default ../data/lineImages-all', default='../data/lineImages-all')
                         
     parser.add_argument('-H', '--height', help='the height of offline images, \
                         default 96', type=int, default= 96)
